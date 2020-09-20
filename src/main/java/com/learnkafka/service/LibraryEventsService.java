@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.RecoverableDataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -11,9 +12,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.learnkafka.entity.LibraryEvent;
-import com.learnkafka.jpa.LibraryEventRepository;
+import com.learnkafka.jpa.LibraryEventsRepository;
 
 import lombok.extern.slf4j.Slf4j;
+
+import static com.learnkafka.entity.LibraryEventType.NEW;
+import static com.learnkafka.entity.LibraryEventType.UPDATE;
 
 @Service
 @Slf4j
@@ -23,11 +27,15 @@ public class LibraryEventsService {
     ObjectMapper objectMapper;
     
     @Autowired
-    LibraryEventRepository libraryEventRepository;
+    LibraryEventsRepository libraryEventsRepository;
 
     public void processLibraryEvents(ConsumerRecord<Integer, String> consumerRecord) throws JsonMappingException, JsonProcessingException {
 	LibraryEvent libraryEvent = objectMapper.readValue(consumerRecord.value(), LibraryEvent.class);
 	log.info("LibraryEvent : {} ",libraryEvent);
+
+	if(libraryEvent.getLibraryEventId()!=null && libraryEvent.getLibraryEventId() == 000){
+		throw new RecoverableDataAccessException("Temporary network issue");
+	}
 	
 	switch(libraryEvent.getLibraryEventType()) {
 	    case NEW:
@@ -50,7 +58,7 @@ public class LibraryEventsService {
 	    throw new IllegalArgumentException("Library event id is missing");
 	}
 	
-	Optional<LibraryEvent> libraryEventOptional= libraryEventRepository.findById(libraryEvent.getLibraryEventId());
+	Optional<LibraryEvent> libraryEventOptional= libraryEventsRepository.findById(libraryEvent.getLibraryEventId());
 	if(!libraryEventOptional.isPresent()) {
 	    throw new IllegalArgumentException("Not a valid library event");
 	}
@@ -59,7 +67,7 @@ public class LibraryEventsService {
 
     private void save(LibraryEvent libraryEvent) {
 	libraryEvent.getBook().setLibraryEvent(libraryEvent);
-	libraryEventRepository.save(libraryEvent);
+	libraryEventsRepository.save(libraryEvent);
 	log.info("Successfully persisted the library event : {}",libraryEvent);
     }
 }

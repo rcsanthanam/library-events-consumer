@@ -4,6 +4,6 @@ import org.springframework.data.repository.CrudRepository;
 
 import com.learnkafka.entity.LibraryEvent;
 
-public interface LibraryEventRepository extends CrudRepository<LibraryEvent, Integer>{
+public interface LibraryEventsRepository extends CrudRepository<LibraryEvent, Integer>{
 
 }
